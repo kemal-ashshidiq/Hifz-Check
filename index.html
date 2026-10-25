@@ -106,6 +106,7 @@ footer .wrap { display: flex; flex-direction: column; gap: 8px; padding-top: 10p
 .stats .s-hint b { color: var(--hint); }
 #heard { direction: rtl; font: 17px/1.6 var(--quran); color: var(--muted); min-height: 1.6em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
 #heard:empty::before { content: attr(data-empty); font: 13px var(--ui); direction: ltr; display: block; }
+#heard.note { font: 13px var(--ui); direction: ltr; }
 #msg { font-size: 13px; color: var(--bad); text-align: center; }
 #done { display: flex; align-items: center; gap: 10px; background: var(--accent-soft); border-radius: 14px; padding: 8px 8px 8px 14px; }
 #done[hidden] { display: none; }
@@ -130,6 +131,8 @@ dialog { border: 0; padding: 0; color: var(--ink); background: var(--surface); w
   margin: auto auto 0; border-radius: 20px 20px 0 0; max-height: 86vh; max-height: 86dvh; box-shadow: var(--shadow); }
 dialog[open] { display: flex; flex-direction: column; }
 dialog::backdrop { background: var(--scrim); }
+/* fixed height on phones: a content-sized bottom sheet shrinks behind the keyboard as the search narrows */
+@media (max-width: 699px) { dialog { height: 86vh; height: 86dvh; } }
 @media (min-width: 700px) { dialog { margin: auto; border-radius: 20px; max-height: 80vh; } }
 .sheet-head { padding: 8px 16px 0; }
 .sheet-head .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 6px; }
@@ -140,7 +143,8 @@ dialog::backdrop { background: var(--scrim); }
 .tabs button[aria-selected="true"] { background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
 .panel { overflow-y: auto; padding: 0 16px max(16px, env(safe-area-inset-bottom, 0px)); }
 .panel[hidden] { display: none; }
-.field { width: 100%; min-height: 44px; border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 8px 12px; }
+.field { width: 100%; min-height: 44px; border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 8px 12px; font-size: 16px; } /* 16px stops iPhone zooming in on focus */
+.field:focus-visible { outline: none; border-color: var(--accent); }
 /* rotated .num badges paint over a plain sticky box; lift it and mask the rows scrolling past */
 #q { position: sticky; top: 0; z-index: 1; margin-bottom: 6px; box-shadow: 0 0 0 6px var(--surface); }
 .list { list-style: none; margin: 0; padding: 0; }
@@ -319,8 +323,9 @@ function asrWorker() {
   worker.onmessage = ({ data }) => {
     if (data.type === 'progress') {
       loaded[data.file] = [data.loaded, data.total];
-      const [a, b] = Object.values(loaded).reduce(([x, y], [l, t]) => [x + l, y + t], [0, 0]);
-      modelNote = 'Downloading the Quran model (one time): ' + Math.round((100 * a) / b) + '% of ' + Math.round(b / 1e6) + ' MB';
+      // files report one at a time, so measure against the model's known total (~43 MB)
+      const got = Object.values(loaded).reduce((x, [l]) => x + l, 0);
+      modelNote = 'Downloading the Quran model (about 43 MB, one time): ' + Math.min(99, Math.round(got / 43e4)) + '%';
     } else if (data.type === 'ready') modelNote = '';
     else if (data.type === 'error') { modelNote = ''; msg("The Quran model could not load. Turn it off to use the phone's recognition."); }
     else if (data.type === 'result') { jobs.get(data.id)(data.text); jobs.delete(data.id); }
@@ -417,6 +422,7 @@ function render() {
   $('sOk').textContent = ok; $('sBad').textContent = bad; $('sHint').textContent = hinted.size;
   $('bar').style.width = (spans.length ? (100 * pos) / spans.length : 0) + '%';
   $('heard').textContent = modelNote || (finals.slice(-2).join(' ') + ' ' + live + (pending ? ' …' : '')).trim();
+  $('heard').classList.toggle('note', !!modelNote);
   const done = spans.length > 0 && pos >= spans.length;
   if (done && listening) { stop(); resume = true; } // remember the mic was on, so "Next page" keeps listening
   $('done').hidden = !done;
@@ -601,11 +607,14 @@ document.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => showTa
 $('where').onclick = () => openSheet('surah');
 $('close').onclick = () => $('sheet').close();
 $('sheet').addEventListener('click', (e) => { if (e.target === $('sheet')) $('sheet').close(); }); // backdrop tap
+// Transliterations vary (Ikhlas / Al-Ikhlaas, Baqarah / Baqara, Yasin / Yaa-Seen): compare letters only,
+// with ee read as i, doubled letters collapsed, and a final h dropped
+const latin = (t) => t.toLowerCase().replace(/[^a-z]/g, '').replace(/ee/g, 'i').replace(/(.)\1+/g, '$1').replace(/h$/, '');
 $('q').oninput = () => {
-  const q = $('q').value.trim().toLowerCase(), ql = q.replace(/[^a-z]/g, ''), qa = norm(q);
+  const q = $('q').value.trim().toLowerCase(), ql = latin(q), qa = norm(q);
   document.querySelectorAll('#surahs li').forEach((li, i) => {
     const s = quran[i];
-    li.hidden = !!q && !(String(i + 1).startsWith(q) || (ql && s.e.toLowerCase().replace(/[^a-z]/g, '').includes(ql)) || (qa && norm(s.n.replace(/\s+/g, '')).includes(qa)));
+    li.hidden = !!q && !(String(i + 1).startsWith(q) || (ql && latin(s.e).includes(ql)) || (qa && norm(s.n.replace(/\s+/g, '')).includes(qa)));
   });
 };
 $('pageForm').onsubmit = (e) => { e.preventDefault(); $('sheet').close(); goPage(+$('pageIn').value || 1); };
