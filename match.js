@@ -58,32 +58,53 @@ function close(a, b) {
 }
 
 // expected, spoken: normalized word arrays.
-// Returns { state, pos }: state[i] is 0 not yet recited, 1 correct, 2 mistake (skipped or replaced).
+// Returns { state, pos }: state[i] is 0 not yet recited, 1 correct, 2 mistake (skipped or replaced);
+// pos is where the reciter is now (the next word they should say).
 // Unrecognized spoken words are ignored (noise, isti'adha); a mistake shows up when the
 // reciter carries on with a later word, which is how a skipped or substituted word is caught.
+// Going back to repeat moves pos back; a mistake already made stays counted, like a teacher would.
+const BACK = 80; // how far back (in words) a repeat is looked for; keeps long ranges fast on phones
+
 function align(expected, spoken) {
   const state = new Array(expected.length).fill(0);
-  let p = 0;
+  const ok = (q) => { if (state[q] === 0) state[q] = 1; };
+  // this spoken word and the next two match expected[q..q+2]; three, because a misheard word
+  // followed by a common one ("... الله") too often looks like an earlier pair on the page
+  const run3 = (i, q) => q + 2 < expected.length && i + 2 < spoken.length &&
+    close(spoken[i], expected[q]) && close(spoken[i + 1], expected[q + 1]) && close(spoken[i + 2], expected[q + 2]);
+  let p = 0, far = 0; // far: furthest point reached; everything before it was recited once
   for (let i = 0; i < spoken.length && p < expected.length; i++) {
     const s = spoken[i];
     // recognizer merged two words ("يا ايها" -> "يايها") or split one
     if (p + 1 < expected.length && s === expected[p] + expected[p + 1]) {
-      state[p] = state[p + 1] = 1; p += 2; continue;
+      ok(p); ok(p + 1); p += 2; far = Math.max(far, p); continue;
     }
     if (i + 1 < spoken.length && close(s + spoken[i + 1], expected[p]) && !close(s, expected[p])) {
-      state[p++] = 1; i++; continue;
+      ok(p++); i++; far = Math.max(far, p); continue;
     }
     // no jumping ahead before the first word lands (isti'adha "بالله" would hit "الله"),
     // and short words are too common to jump ahead on
     const reach = p === 0 ? 0 : s.length <= 2 ? 1 : 3;
+    let hit = false;
     for (let k = 0; k <= reach && p + k < expected.length; k++) {
       if (close(s, expected[p + k])) {
-        for (let m = p; m < p + k; m++) state[m] = 2;
-        state[p + k] = 1;
+        for (let m = p; m < p + k; m++) if (state[m] === 0) state[m] = 2;
+        ok(p + k);
         p += k + 1;
+        hit = true;
         break;
       }
     }
+    // reciter went back to repeat (or forward again over words already recited):
+    // move to the nearest such spot where this word and the next two match
+    if (!hit && p > 0) {
+      let best = -1;
+      for (let q = Math.max(0, p - BACK); q < Math.max(far, p); q++) {
+        if (q !== p && run3(i, q) && (best < 0 || Math.abs(q - p) < Math.abs(best - p))) best = q;
+      }
+      if (best >= 0) { ok(best); p = best + 1; }
+    }
+    far = Math.max(far, p);
   }
   return { state, pos: p };
 }
