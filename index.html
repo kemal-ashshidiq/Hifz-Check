@@ -511,7 +511,7 @@ $('rangeForm').onsubmit = (e) => {
 };
 $('surah').onchange = () => { const n = quran[$('surah').value].a.length; $('from').max = $('to').max = n; $('from').value = 1; $('to').value = Math.min(n, 7); };
 
-fetch('quran.json').then((r) => r.json()).then((q) => {
+fetch('quran.json?v=2').then( // bump v when quran.json changes so phones skip their cached copy(r) => r.json()).then((q) => {
   quran = q;
   q.forEach((s, si) => s.a.forEach((_, ai) => {
     (pages[s.p[ai]] = pages[s.p[ai]] || []).push([si, ai + 1]);
