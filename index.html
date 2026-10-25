@@ -3,116 +3,363 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#14322b">
+<meta name="theme-color" content="#f6f3ea">
 <title>Hifz Check</title>
+<script>
+  // Set the theme before first paint: saved choice, else the system setting.
+  (function () { var t; try { t = localStorage.getItem('theme'); } catch (e) {}
+    document.documentElement.dataset.theme = t || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'); })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Figtree:wght@400;600&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Figtree:wght@400;600;700&display=swap">
 <style>
-/* One column, phone first: passage fills the screen, controls pinned to the thumb zone. */
 :root {
-  --bg: #eef1ec; --surface: #fbfcf9; --ink: #17241f; --muted: #5d6b65; --line: #d5ddd7;
-  --accent: #14594a; --on-accent: #f4faf7; --blank: #dde5df;
-  --ok: #17241f; --bad: #b3261e; --bad-bg: #fbe4e1; --hint: #8a5a00; --hint-bg: #fbefd5;
+  --bg: #f6f3ea; --surface: #fffdf7; --raised: #ffffff; --ink: #1d2420; --muted: #6b716b; --line: #e4dccb;
+  --accent: #0f6b55; --accent-soft: #dcefe7; --on-accent: #ffffff; --blank: #e8e0cc;
+  --ok: #1d2420; --bad: #b3261e; --bad-bg: #fbe4e1; --hint: #8a5a00; --hint-bg: #fbefd5;
+  --gold: #a8843a; --banner-bg: #f2ead6; --scrim: rgba(20, 24, 22, .45); --shadow: 0 8px 28px rgba(40, 34, 20, .12);
   --quran: "Amiri Quran", "Amiri", "Traditional Arabic", serif;
   --ui: "Figtree", system-ui, sans-serif;
+  color-scheme: light;
 }
-@media (prefers-color-scheme: dark) {
-  :root { --bg: #0f1714; --surface: #16211d; --ink: #e3ece7; --muted: #92a39b; --line: #2a3832;
-    --accent: #5fbfa5; --on-accent: #0b1a15; --blank: #24322c;
-    --ok: #e3ece7; --bad: #ff8a80; --bad-bg: #3a1b18; --hint: #f0c060; --hint-bg: #3a2e12; color-scheme: dark; }
+:root[data-theme="dark"] {
+  --bg: #0e1412; --surface: #151d1a; --raised: #1b2521; --ink: #e6ede9; --muted: #93a29b; --line: #29362f;
+  --accent: #4fc3a1; --accent-soft: #173229; --on-accent: #06231a; --blank: #24312c;
+  --ok: #e6ede9; --bad: #ff8a80; --bad-bg: #3a1b18; --hint: #f0c060; --hint-bg: #3a2e12;
+  --gold: #c9a75e; --banner-bg: #1a2420; --scrim: rgba(0, 0, 0, .6); --shadow: 0 8px 28px rgba(0, 0, 0, .45);
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--ui);
-  display: flex; flex-direction: column;
-  padding-top: env(safe-area-inset-top, 0px); }
-.wrap { width: 100%; max-width: 720px; margin: 0 auto;
+  display: flex; flex-direction: column; overflow-x: hidden; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.wrap { width: 100%; max-width: 640px; margin: 0 auto;
   padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-header { padding-block: 14px 10px; display: flex; flex-direction: column; gap: 10px; }
-h1 { margin: 0; font-size: 17px; letter-spacing: .02em; }
-.pick { display: grid; grid-template-columns: 1fr 72px 72px; gap: 8px; }
-label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); min-width: 0; }
-select, input { font: 15px var(--ui); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px; width: 100%; }
-main { flex: 1; overflow-y: auto; }
-#passage { direction: rtl; text-align: justify; font: 30px/2.25 var(--quran); padding-block: 8px 24px; }
+.icon { width: 44px; height: 44px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--ink); }
+.icon:hover { background: var(--accent-soft); }
+
+/* Header */
+header { background: var(--surface); border-bottom: 1px solid var(--line); padding-top: env(safe-area-inset-top, 0px); }
+header .wrap { display: flex; align-items: center; gap: 4px; min-height: 56px; }
+#where { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; border: 0; background: none; padding: 6px 8px 6px 0; border-radius: 12px; text-align: left; min-height: 44px; }
+#where .t { min-width: 0; display: flex; flex-direction: column; }
+#where b { font-weight: 700; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#where small { color: var(--muted); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.theme-dark, :root[data-theme="dark"] .theme-light { display: none; }
+:root[data-theme="dark"] .theme-dark { display: block; }
+#eye[aria-pressed="false"] .eye-off, #eye[aria-pressed="true"] .eye-on { display: none; }
+
+/* Mushaf page */
+main { flex: 1; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
+.page { margin-block: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+  padding: 14px 14px 10px; box-shadow: var(--shadow); }
+#passage { direction: rtl; text-align: justify; text-align-last: center; font: clamp(23px, 6.4vw, 31px)/2.3 var(--quran); }
+#passage.turn-next { animation: turnNext .22s ease-out; }
+#passage.turn-prev { animation: turnPrev .22s ease-out; }
+@keyframes turnNext { from { opacity: 0; transform: translateX(-24px); } }
+@keyframes turnPrev { from { opacity: 0; transform: translateX(24px); } }
+.banner { margin: 6px 0 2px; padding: 4px; border: 1.5px solid var(--gold); border-radius: 12px; text-align: center; }
+.banner div { border: 1px solid var(--gold); border-radius: 8px; background:
+  radial-gradient(circle at 14px 50%, var(--gold) 0 3px, transparent 4px),
+  radial-gradient(circle at calc(100% - 14px) 50%, var(--gold) 0 3px, transparent 4px), var(--banner-bg);
+  font-size: .95em; line-height: 1.9; color: var(--ink); padding-inline: 30px; }
+.bism { display: block; text-align: center; color: var(--ink); line-height: 2.1; }
 /* Amiri's tall line box makes plain backgrounds merge into blocks, so draw a shorter bar instead */
-.w { cursor: pointer; padding: 0 2px; background: no-repeat center / 100% 1.1em; transition: color .15s; }
+.w { cursor: pointer; padding: 0 2px; border-radius: 4px; background: no-repeat center / 100% 1.1em; transition: color .15s; }
 .w.hidden { color: transparent; background-image: linear-gradient(var(--blank), var(--blank)); background-size: 100% .7em; }
 .w.ok { color: var(--ok); }
 .w.bad { color: var(--bad); background-image: linear-gradient(var(--bad-bg), var(--bad-bg)); }
 .w.hint { color: var(--hint); background-image: linear-gradient(var(--hint-bg), var(--hint-bg)); }
-.w.next { box-shadow: inset 0 -3px 0 var(--accent); }
-.end { color: var(--accent); font-size: .8em; padding: 0 4px; }
-footer { border-top: 1px solid var(--line); background: var(--surface);
-  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
-footer .wrap { display: flex; flex-direction: column; gap: 8px; padding-block: 10px 0; }
-#heard { direction: rtl; font-size: 14px; color: var(--muted); min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stats { display: flex; gap: 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.w.next { text-decoration: underline 3px var(--accent); text-underline-offset: .35em; }
+.reading .w.hidden { color: var(--ink); background-image: none; }
+.reading .w.ok { color: var(--accent); }
+.mark { color: var(--accent); font-size: .8em; }
+.end { color: var(--gold); padding: 0 3px; white-space: nowrap; }
+.pager { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px; margin-top: 8px; border-top: 1px solid var(--line); padding-top: 8px; }
+.pager button { min-height: 44px; display: flex; align-items: center; gap: 4px; border: 0; background: none; color: var(--accent); font-weight: 600; border-radius: 10px; padding: 0 8px; }
+.pager button:hover { background: var(--accent-soft); }
+.pager button:disabled { visibility: hidden; }
+#prev { justify-self: end; }
+#pnum { font: 18px var(--quran); color: var(--muted); min-width: 3ch; text-align: center; }
+.pager[hidden] { display: none; }
+
+/* Recitation bar */
+footer { background: var(--surface); border-top: 1px solid var(--line); padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); position: relative; }
+#bar { position: absolute; top: -1px; left: 0; height: 3px; width: 0; background: var(--accent); transition: width .2s; }
+footer .wrap { display: flex; flex-direction: column; gap: 8px; padding-top: 10px; }
+.status { display: flex; align-items: center; gap: 8px; min-height: 32px; }
+#target { min-width: 0; display: flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--bg);
+  border-radius: 999px; padding: 4px 12px; min-height: 32px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+#target span { overflow: hidden; text-overflow: ellipsis; }
+#target svg { width: 16px; height: 16px; color: var(--muted); }
+.stats { margin-left: auto; display: flex; gap: 10px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .stats b { color: var(--ink); }
-.row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
-button { font: 600 15px var(--ui); border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 12px 16px; cursor: pointer; }
-button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-#mic { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-#mic.on { background: var(--bad); border-color: var(--bad); }
-#msg { font-size: 13px; color: var(--bad); }
-@media (prefers-reduced-motion: reduce) { .w { transition: none; } }
+.stats .s-bad b { color: var(--bad); }
+.stats .s-hint b { color: var(--hint); }
+#heard { direction: rtl; font: 17px/1.6 var(--quran); color: var(--muted); min-height: 1.6em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+#heard:empty::before { content: attr(data-empty); font: 13px var(--ui); direction: ltr; display: block; }
+#msg { font-size: 13px; color: var(--bad); text-align: center; }
+#done { display: flex; align-items: center; gap: 10px; background: var(--accent-soft); border-radius: 14px; padding: 8px 8px 8px 14px; }
+#done[hidden] { display: none; }
+#doneText { flex: 1; font-size: 14px; }
+#doneText b { display: block; }
+.btn { min-height: 44px; border-radius: 12px; border: 0; padding: 0 16px; font-weight: 700; background: var(--accent); color: var(--on-accent); }
+.controls { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; justify-items: center; padding-bottom: 2px; }
+.side { display: flex; flex-direction: column; align-items: center; gap: 2px; border: 0; background: none; color: var(--ink); font-size: 12px; font-weight: 600; min-width: 64px; min-height: 52px; justify-content: center; border-radius: 14px; }
+.side:hover { background: var(--accent-soft); }
+#mic { position: relative; width: 72px; height: 72px; border-radius: 50%; border: 0; background: var(--accent); color: var(--on-accent);
+  display: grid; place-items: center; box-shadow: 0 6px 18px color-mix(in srgb, var(--accent) 40%, transparent); }
+#mic svg { width: 30px; height: 30px; }
+#mic .i-stop, #mic.on .i-mic { display: none; }
+#mic.on .i-stop { display: block; }
+#mic.on { background: var(--bad); box-shadow: 0 6px 18px color-mix(in srgb, var(--bad) 40%, transparent); }
+#mic.on::before, #mic.on::after { content: ""; position: absolute; inset: 0; border-radius: 50%; border: 3px solid var(--bad); animation: pulse 1.6s ease-out infinite; pointer-events: none; }
+#mic.on::after { animation-delay: .8s; }
+@keyframes pulse { from { transform: scale(1); opacity: .7; } to { transform: scale(1.6); opacity: 0; } }
+
+/* Navigation sheet */
+dialog { border: 0; padding: 0; color: var(--ink); background: var(--surface); width: 100%; max-width: 560px;
+  margin: auto auto 0; border-radius: 20px 20px 0 0; max-height: 86vh; max-height: 86dvh; box-shadow: var(--shadow); }
+dialog[open] { display: flex; flex-direction: column; }
+dialog::backdrop { background: var(--scrim); }
+@media (min-width: 700px) { dialog { margin: auto; border-radius: 20px; max-height: 80vh; } }
+.sheet-head { padding: 8px 16px 0; }
+.sheet-head .grab { width: 40px; height: 4px; border-radius: 2px; background: var(--line); margin: 0 auto 6px; }
+.sheet-top { display: flex; align-items: center; justify-content: space-between; }
+.sheet-top h2 { margin: 0; font-size: 18px; }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; background: var(--bg); border-radius: 12px; padding: 4px; margin: 6px 0 10px; }
+.tabs button { min-height: 40px; border: 0; border-radius: 9px; background: none; font-weight: 600; color: var(--muted); }
+.tabs button[aria-selected="true"] { background: var(--raised); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.panel { overflow-y: auto; padding: 0 16px max(16px, env(safe-area-inset-bottom, 0px)); }
+.panel[hidden] { display: none; }
+.field { width: 100%; min-height: 44px; border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 8px 12px; }
+#q { position: sticky; top: 0; margin-bottom: 6px; }
+.list { list-style: none; margin: 0; padding: 0; }
+.list button { width: 100%; display: grid; grid-template-columns: 40px 1fr auto; align-items: center; gap: 12px; min-height: 56px;
+  border: 0; border-bottom: 1px solid var(--line); background: none; text-align: left; padding: 6px 4px; }
+.list button:hover, .list button.cur { background: var(--accent-soft); }
+.num { width: 36px; height: 36px; display: grid; place-items: center; border: 1.5px solid var(--gold); border-radius: 10px; transform: rotate(45deg); font-size: 12px; font-weight: 700; }
+.num span { transform: rotate(-45deg); }
+.list small { display: block; color: var(--muted); font-size: 12.5px; }
+.ar { font: 20px var(--quran); direction: rtl; }
+.juz { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.juz button { min-height: 56px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); font-weight: 700; }
+.juz button small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.juz button.cur { border-color: var(--accent); background: var(--accent-soft); }
+.form { display: grid; gap: 12px; }
+.form label { display: grid; gap: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.form .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.form p { margin: 0; font-size: 13px; color: var(--muted); }
+
+@media (prefers-reduced-motion: reduce) {
+  .w, #bar { transition: none; }
+  #passage.turn-next, #passage.turn-prev { animation: none; }
+  #mic.on::before { animation: none; transform: scale(1.18); opacity: .5; }
+  #mic.on::after { display: none; }
+}
 </style>
 </head>
 <body>
-<header class="wrap">
-  <h1>Hifz Check</h1>
-  <div class="pick">
-    <label for="surah">Surah<select id="surah"></select></label>
-    <label for="from">From<input id="from" type="number" min="1" value="1" inputmode="numeric"></label>
-    <label for="to">To<input id="to" type="number" min="1" value="4" inputmode="numeric"></label>
+<header>
+  <div class="wrap">
+    <button id="where" type="button" aria-haspopup="dialog" aria-label="Open surah, juz and page navigation">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span class="t"><b id="hSurah">Hifz Check</b><small id="hInfo">Loading…</small></span>
+    </button>
+    <button id="eye" class="icon" type="button" aria-pressed="true" aria-label="Hide verses (memorization mode)" title="Hide or show verses">
+      <svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+      <svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.9 8.3 2 12 2 12s3.5 7 10 7a9.6 9.6 0 0 0 5.4-1.6M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+    </button>
+    <button id="theme" class="icon" type="button" aria-label="Switch to dark mode" title="Light or dark mode">
+      <svg class="theme-light" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
+      <svg class="theme-dark" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+    </button>
   </div>
 </header>
-<main><div class="wrap"><div id="passage" aria-live="polite">Loading…</div></div></main>
-<footer>
+
+<main id="main">
   <div class="wrap">
-    <div id="heard" aria-label="What the recognizer heard"></div>
-    <div class="stats"><span>Recited <b id="sOk">0</b></span><span>Mistakes <b id="sBad">0</b></span><span>Hints <b id="sHint">0</b></span><span id="sLeft"></span></div>
-    <div id="msg" hidden></div>
-    <div class="row">
-      <button id="mic" type="button">Start reciting</button>
-      <button id="hint" type="button">Hint</button>
-      <button id="reset" type="button">Reset</button>
+    <article class="page" aria-label="Mushaf page">
+      <div id="passage" aria-live="polite">Loading…</div>
+      <nav class="pager" id="pager" aria-label="Pages">
+        <button id="next" type="button" aria-label="Next page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>Next</button>
+        <span id="pnum" aria-hidden="true"></span>
+        <button id="prev" type="button" aria-label="Previous page">Previous<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+      </nav>
+    </article>
+  </div>
+</main>
+
+<footer>
+  <div id="bar" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="status">
+      <button id="target" type="button" aria-haspopup="dialog"><span id="targetText">Testing this page</span>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="stats" aria-live="polite">
+        <span title="Recited">✓ <b id="sOk">0</b></span>
+        <span class="s-bad" title="Mistakes">✗ <b id="sBad">0</b></span>
+        <span class="s-hint" title="Hints">? <b id="sHint">0</b></span>
+      </div>
+    </div>
+    <div id="heard" aria-label="What the recognizer heard" data-empty="Tap the mic and recite from the start of the page"></div>
+    <div id="msg" role="alert" hidden></div>
+    <div id="done" role="status" hidden>
+      <span id="doneText"></span>
+      <button id="doneBtn" class="btn" type="button"></button>
+    </div>
+    <div class="controls">
+      <button id="hint" class="side" type="button" aria-label="Hint: reveal the next word">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18h6M10 22h4M12 2a7 7 0 0 0-4 12.7V17h8v-2.3A7 7 0 0 0 12 2z"/></svg>Hint</button>
+      <button id="mic" type="button" aria-label="Start reciting" aria-pressed="false">
+        <svg class="i-mic" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4"/></svg>
+        <svg class="i-stop" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2" fill="currentColor"/></svg>
+      </button>
+      <button id="reset" class="side" type="button" aria-label="Reset this test">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg>Reset</button>
     </div>
   </div>
 </footer>
+
+<dialog id="sheet" aria-labelledby="sheetTitle">
+  <div class="sheet-head">
+    <div class="grab" aria-hidden="true"></div>
+    <div class="sheet-top"><h2 id="sheetTitle">Go to</h2>
+      <button id="close" class="icon" type="button" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div class="tabs" role="tablist">
+      <button role="tab" type="button" data-tab="surah" aria-selected="true">Surah</button>
+      <button role="tab" type="button" data-tab="juz" aria-selected="false">Juz</button>
+      <button role="tab" type="button" data-tab="page" aria-selected="false">Page</button>
+      <button role="tab" type="button" data-tab="range" aria-selected="false">Range</button>
+    </div>
+  </div>
+  <div class="panel" id="tab-surah" role="tabpanel">
+    <input id="q" class="field" type="search" placeholder="Search by name or number" aria-label="Search surahs" autocomplete="off">
+    <ul class="list" id="surahs"></ul>
+  </div>
+  <div class="panel" id="tab-juz" role="tabpanel" hidden><div class="juz" id="juzs"></div></div>
+  <div class="panel" id="tab-page" role="tabpanel" hidden>
+    <form class="form" id="pageForm">
+      <label for="pageIn">Page (1–604)<input id="pageIn" class="field" type="number" min="1" max="604" inputmode="numeric" required></label>
+      <button class="btn" type="submit">Go to page</button>
+    </form>
+  </div>
+  <div class="panel" id="tab-range" role="tabpanel" hidden>
+    <form class="form" id="rangeForm">
+      <p>Test a specific ayah range instead of the current page.</p>
+      <label for="surah">Surah<select id="surah" class="field"></select></label>
+      <div class="two">
+        <label for="from">From ayah<input id="from" class="field" type="number" min="1" value="1" inputmode="numeric"></label>
+        <label for="to">To ayah<input id="to" class="field" type="number" min="1" value="7" inputmode="numeric"></label>
+      </div>
+      <button class="btn" type="submit">Start range test</button>
+    </form>
+  </div>
+</dialog>
+
 <script src="match.js"></script>
 <script>
 const $ = (id) => document.getElementById(id);
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let quran, spans = [], expected = [], hinted = new Set(), finals = [], live = '', listening = false, rec;
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
+};
+const arNum = (n) => n.toLocaleString('ar-EG');
+const LAST_PAGE = 604;
+let quran, pages = [], juzPage = [];
+let view = { page: 1 }; // or { s, from, to } for a range test
+let spans = [], expected = [], hinted = new Set(), finals = [], live = '', listening = false, rec, resume = false;
 
 function msg(text) { $('msg').textContent = text || ''; $('msg').hidden = !text; }
 
-function load() {
+// ---- theme + reading mode ----
+function applyTheme(t) {
+  document.documentElement.dataset.theme = t;
+  $('theme').setAttribute('aria-label', t === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+  document.querySelector('meta[name=theme-color]').content = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim();
+}
+applyTheme(document.documentElement.dataset.theme);
+$('theme').onclick = () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; store.set('theme', t); applyTheme(t); };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => { if (!store.get('theme')) applyTheme(e.matches ? 'dark' : 'light'); });
+
+function applyHidden(hide) {
+  $('eye').setAttribute('aria-pressed', hide);
+  $('eye').setAttribute('aria-label', hide ? 'Show verses (reading mode)' : 'Hide verses (memorization mode)');
+  $('passage').classList.toggle('reading', !hide);
+}
+applyHidden(store.get('hide') !== '0');
+$('eye').onclick = () => { const hide = $('eye').getAttribute('aria-pressed') !== 'true'; store.set('hide', hide ? '1' : '0'); applyHidden(hide); };
+
+// ---- building a page / range ----
+function ayahsInView() {
+  if (view.page) return pages[view.page];
+  const out = [];
+  for (let a = view.from; a <= view.to; a++) out.push([view.s, a]);
+  return out;
+}
+
+function load(dir) {
   stop();
-  const s = quran[$('surah').value];
-  const n = s.a.length;
-  const from = Math.min(Math.max(1, +$('from').value || 1), n);
-  const to = Math.min(Math.max(from, +$('to').value || from), n);
-  $('from').value = from; $('to').value = to; $('from').max = $('to').max = n;
   const box = $('passage');
   box.textContent = '';
-  spans = []; expected = []; hinted = new Set(); finals = []; live = '';
-  for (let a = from; a <= to; a++) {
-    for (const w of s.a[a - 1].split(' ')) {
+  spans = []; expected = []; hinted = new Set(); finals = []; live = ''; resume = false;
+  for (const [s, a] of ayahsInView()) {
+    if (a === 1) {
+      const b = document.createElement('div');
+      b.className = 'banner';
+      b.innerHTML = '<div></div>';
+      b.firstChild.textContent = quran[s].n;
+      box.append(b);
+      // Surah 1's bismillah is its first ayah; surah 9 has none
+      if (s !== 0 && s !== 8) {
+        const bism = document.createElement('span');
+        bism.className = 'bism';
+        bism.textContent = quran[0].a[0];
+        box.append(bism);
+      }
+    }
+    for (const w of quran[s].a[a - 1].split(' ')) {
       const el = document.createElement('span');
-      el.className = 'w hidden';
       el.textContent = w;
+      if (!norm(w)) { // waqf/sajda marks are not words to recite; keep them on the previous word's line
+        el.className = 'mark';
+        if (box.lastChild && box.lastChild.nodeType === 3) box.lastChild.textContent = ' ';
+        box.append(el, ' ');
+        continue;
+      }
+      el.className = 'w hidden';
       el.dataset.i = spans.length;
       spans.push(el); expected.push(norm(w));
       box.append(el, ' ');
     }
     const end = document.createElement('span');
     end.className = 'end';
-    end.textContent = '﴿' + a.toLocaleString('ar-EG') + '﴾';
+    end.textContent = '۝' + arNum(a);
     box.append(end, ' ');
   }
+  if (dir) { box.classList.remove('turn-next', 'turn-prev'); void box.offsetWidth; box.classList.add(dir); }
+  $('main').scrollTop = 0;
+  updateHeader();
   render();
+}
+
+function updateHeader() {
+  const [s, a] = ayahsInView()[0];
+  const page = view.page || quran[s].p[a - 1];
+  $('hSurah').textContent = (s + 1) + '. ' + quran[s].e;
+  $('hInfo').textContent = 'Page ' + page + ' · Juz ' + quran[s].j[a - 1];
+  $('pager').hidden = !view.page;
+  $('pnum').textContent = arNum(page);
+  $('prev').disabled = page <= 1;
+  $('next').disabled = page >= LAST_PAGE;
+  $('targetText').textContent = view.page ? 'Testing page ' + page : quran[s].e + ' ' + view.from + '–' + view.to + ' ✕';
+  $('target').setAttribute('aria-label', view.page ? 'Testing page ' + page + '. Choose an ayah range instead' : 'Exit range test, back to page ' + page);
 }
 
 function render() {
@@ -125,12 +372,22 @@ function render() {
     if (state[i] === 2) bad++;
   });
   $('sOk').textContent = ok; $('sBad').textContent = bad; $('sHint').textContent = hinted.size;
-  $('sLeft').textContent = pos >= spans.length ? 'Done' : '';
+  $('bar').style.width = (spans.length ? (100 * pos) / spans.length : 0) + '%';
   $('heard').textContent = (finals.slice(-2).join(' ') + ' ' + live).trim();
-  if (pos >= spans.length && listening) stop();
+  const done = spans.length > 0 && pos >= spans.length;
+  if (done && listening) { stop(); resume = true; } // remember the mic was on, so "Next page" keeps listening
+  $('done').hidden = !done;
+  if (done) {
+    const hasNext = view.page && view.page < LAST_PAGE;
+    $('doneText').innerHTML = '<b></b>';
+    $('doneText').firstChild.textContent = (view.page ? 'Page ' + view.page : 'Range') + ' complete';
+    $('doneText').append(bad ? bad + ' mistake' + (bad > 1 ? 's' : '') + ', ' + hinted.size + ' hint' + (hinted.size === 1 ? '' : 's') : 'No mistakes. Masha Allah!');
+    $('doneBtn').textContent = hasNext ? 'Next page' : view.page ? 'Start over' : 'Back to page';
+  }
   return pos;
 }
 
+// ---- speech recognition ----
 function listen() {
   const r = rec = new SR();
   r.lang = 'ar-SA';
@@ -154,32 +411,120 @@ function listen() {
   r.start();
 }
 
+function setMic(on) {
+  $('mic').classList.toggle('on', on);
+  $('mic').setAttribute('aria-pressed', on);
+  $('mic').setAttribute('aria-label', on ? 'Stop reciting' : 'Start reciting');
+}
+
 function start() {
   if (!SR) { msg('This browser has no speech recognition. Use Chrome on Android, or tap the blanks to reveal words.'); return; }
-  msg(''); listening = true;
-  $('mic').textContent = 'Stop'; $('mic').classList.add('on');
+  msg(''); listening = true; setMic(true);
   listen();
 }
 
 function stop() {
-  listening = false;
-  $('mic').textContent = 'Start reciting'; $('mic').classList.remove('on');
+  listening = false; setMic(false);
   if (rec) { const r = rec; rec = null; r.abort(); }
   if (live) { finals.push(live); live = ''; }
 }
 
+// ---- navigation ----
+function goPage(p, dir) {
+  p = Math.min(Math.max(1, p), LAST_PAGE);
+  view = { page: p };
+  store.set('page', p);
+  load(dir);
+}
+function turn(delta) {
+  if (!view.page) return;
+  const p = view.page + delta;
+  if (p >= 1 && p <= LAST_PAGE) goPage(p, delta > 0 ? 'turn-next' : 'turn-prev');
+}
+function currentPage() { const [s, a] = ayahsInView()[0]; return view.page || quran[s].p[a - 1]; }
+
+$('next').onclick = () => turn(1);
+$('prev').onclick = () => turn(-1);
 $('mic').onclick = () => (listening ? stop() : start());
 $('hint').onclick = () => { const p = render(); if (p < spans.length) { hinted.add(p); render(); } };
-$('reset').onclick = load;
+$('reset').onclick = () => load();
 $('passage').onclick = (e) => { const i = e.target.dataset.i; if (i != null) { hinted.add(+i); render(); } };
-['surah', 'from', 'to'].forEach((id) => ($(id).onchange = load));
+$('doneBtn').onclick = () => {
+  const go = resume;
+  if (!view.page) goPage(currentPage());
+  else if (view.page < LAST_PAGE) turn(1);
+  else load();
+  if (go) start();
+};
+$('target').onclick = () => (view.page ? openSheet('range') : goPage(currentPage()));
+
+// Mushaf pages turn right-to-left: swipe right (or press ←) for the next page.
+let touch = null;
+$('main').addEventListener('touchstart', (e) => { touch = e.touches.length === 1 ? [e.touches[0].clientX, e.touches[0].clientY] : null; }, { passive: true });
+$('main').addEventListener('touchend', (e) => {
+  if (!touch) return;
+  const dx = e.changedTouches[0].clientX - touch[0], dy = e.changedTouches[0].clientY - touch[1];
+  touch = null;
+  if (Math.abs(dx) > 60 && Math.abs(dx) > 1.5 * Math.abs(dy)) turn(dx > 0 ? 1 : -1);
+});
+document.addEventListener('keydown', (e) => {
+  if ($('sheet').open || /INPUT|SELECT|TEXTAREA/.test(e.target.tagName)) return;
+  if (e.key === 'ArrowLeft') turn(1);
+  if (e.key === 'ArrowRight') turn(-1);
+});
+
+// ---- sheet ----
+function showTab(name) {
+  document.querySelectorAll('[data-tab]').forEach((b) => b.setAttribute('aria-selected', b.dataset.tab === name));
+  document.querySelectorAll('.panel').forEach((p) => (p.hidden = p.id !== 'tab-' + name));
+}
+function openSheet(tab) {
+  const [s, a] = ayahsInView()[0];
+  document.querySelectorAll('#surahs button').forEach((b, i) => b.classList.toggle('cur', i === s));
+  document.querySelectorAll('#juzs button').forEach((b, i) => b.classList.toggle('cur', i + 1 === quran[s].j[a - 1]));
+  $('pageIn').value = currentPage();
+  showTab(tab);
+  $('sheet').showModal();
+  if (tab === 'surah') document.querySelector('#surahs .cur').scrollIntoView({ block: 'center' });
+}
+document.querySelectorAll('[data-tab]').forEach((b) => (b.onclick = () => showTab(b.dataset.tab)));
+$('where').onclick = () => openSheet('surah');
+$('close').onclick = () => $('sheet').close();
+$('sheet').addEventListener('click', (e) => { if (e.target === $('sheet')) $('sheet').close(); }); // backdrop tap
+$('q').oninput = () => {
+  const q = $('q').value.trim().toLowerCase(), ql = q.replace(/[^a-z]/g, ''), qa = norm(q);
+  document.querySelectorAll('#surahs li').forEach((li, i) => {
+    const s = quran[i];
+    li.hidden = !!q && !(String(i + 1).startsWith(q) || (ql && s.e.toLowerCase().replace(/[^a-z]/g, '').includes(ql)) || (qa && norm(s.n.replace(/\s+/g, '')).includes(qa)));
+  });
+};
+$('pageForm').onsubmit = (e) => { e.preventDefault(); $('sheet').close(); goPage(+$('pageIn').value || 1); };
+$('rangeForm').onsubmit = (e) => {
+  e.preventDefault();
+  const s = +$('surah').value, n = quran[s].a.length;
+  const from = Math.min(Math.max(1, +$('from').value || 1), n);
+  const to = Math.min(Math.max(from, +$('to').value || from), n);
+  $('from').value = from; $('to').value = to;
+  $('sheet').close();
+  view = { s, from, to };
+  load();
+};
+$('surah').onchange = () => { const n = quran[$('surah').value].a.length; $('from').max = $('to').max = n; $('from').value = 1; $('to').value = Math.min(n, 7); };
 
 fetch('quran.json').then((r) => r.json()).then((q) => {
   quran = q;
+  q.forEach((s, si) => s.a.forEach((_, ai) => {
+    (pages[s.p[ai]] = pages[s.p[ai]] || []).push([si, ai + 1]);
+    if (!juzPage[s.j[ai]]) juzPage[s.j[ai]] = s.p[ai];
+  }));
+  $('surahs').innerHTML = q.map((s, i) => `<li><button type="button" data-s="${i}"><span class="num"><span>${i + 1}</span></span>
+    <span><b>${s.e}</b><small>${s.a.length} ayahs · page ${s.p[0]}</small></span><span class="ar">${s.n.replace(/^سُورَةُ\s*/, '')}</span></button></li>`).join('');
+  $('surahs').onclick = (e) => { const b = e.target.closest('button'); if (b) { $('sheet').close(); goPage(q[b.dataset.s].p[0]); } };
+  $('juzs').innerHTML = juzPage.slice(1).map((p, i) => `<button type="button" data-p="${p}">Juz ${i + 1}<small>page ${p}</small></button>`).join('');
+  $('juzs').onclick = (e) => { const b = e.target.closest('button'); if (b) { $('sheet').close(); goPage(+b.dataset.p); } };
   $('surah').innerHTML = q.map((s, i) => `<option value="${i}">${i + 1}. ${s.e}</option>`).join('');
-  $('surah').value = 0;
-  load();
-}).catch(() => { $('passage').textContent = 'Could not load quran.json. Open this page through a web server, not as a file.'; });
+  goPage(+store.get('page') || 1);
+}).catch((err) => { console.error(err); $('passage').textContent = 'Could not load quran.json. Open this page through a web server, not as a file.'; });
 </script>
 </body>
 </html>
