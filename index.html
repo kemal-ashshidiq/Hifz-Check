@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14322b">
+<title>Hifz Check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Figtree:wght@400;600&display=swap">
+<style>
+/* One column, phone first: passage fills the screen, controls pinned to the thumb zone. */
+:root {
+  --bg: #eef1ec; --surface: #fbfcf9; --ink: #17241f; --muted: #5d6b65; --line: #d5ddd7;
+  --accent: #14594a; --on-accent: #f4faf7; --blank: #dde5df;
+  --ok: #17241f; --bad: #b3261e; --bad-bg: #fbe4e1; --hint: #8a5a00; --hint-bg: #fbefd5;
+  --quran: "Amiri Quran", "Amiri", "Traditional Arabic", serif;
+  --ui: "Figtree", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #0f1714; --surface: #16211d; --ink: #e3ece7; --muted: #92a39b; --line: #2a3832;
+    --accent: #5fbfa5; --on-accent: #0b1a15; --blank: #24322c;
+    --ok: #e3ece7; --bad: #ff8a80; --bad-bg: #3a1b18; --hint: #f0c060; --hint-bg: #3a2e12; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--ui);
+  display: flex; flex-direction: column;
+  padding-top: env(safe-area-inset-top, 0px); }
+.wrap { width: 100%; max-width: 720px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+header { padding-block: 14px 10px; display: flex; flex-direction: column; gap: 10px; }
+h1 { margin: 0; font-size: 17px; letter-spacing: .02em; }
+.pick { display: grid; grid-template-columns: 1fr 72px 72px; gap: 8px; }
+label { display: flex; flex-direction: column; gap: 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); min-width: 0; }
+select, input { font: 15px var(--ui); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px; width: 100%; }
+main { flex: 1; overflow-y: auto; }
+#passage { direction: rtl; text-align: justify; font: 30px/2.25 var(--quran); padding-block: 8px 24px; }
+/* Amiri's tall line box makes plain backgrounds merge into blocks, so draw a shorter bar instead */
+.w { cursor: pointer; padding: 0 2px; background: no-repeat center / 100% 1.1em; transition: color .15s; }
+.w.hidden { color: transparent; background-image: linear-gradient(var(--blank), var(--blank)); background-size: 100% .7em; }
+.w.ok { color: var(--ok); }
+.w.bad { color: var(--bad); background-image: linear-gradient(var(--bad-bg), var(--bad-bg)); }
+.w.hint { color: var(--hint); background-image: linear-gradient(var(--hint-bg), var(--hint-bg)); }
+.w.next { box-shadow: inset 0 -3px 0 var(--accent); }
+.end { color: var(--accent); font-size: .8em; padding: 0 4px; }
+footer { border-top: 1px solid var(--line); background: var(--surface);
+  padding-bottom: max(12px, env(safe-area-inset-bottom, 0px)); }
+footer .wrap { display: flex; flex-direction: column; gap: 8px; padding-block: 10px 0; }
+#heard { direction: rtl; font-size: 14px; color: var(--muted); min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stats { display: flex; gap: 14px; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.stats b { color: var(--ink); }
+.row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; }
+button { font: 600 15px var(--ui); border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); padding: 12px 16px; cursor: pointer; }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#mic { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+#mic.on { background: var(--bad); border-color: var(--bad); }
+#msg { font-size: 13px; color: var(--bad); }
+@media (prefers-reduced-motion: reduce) { .w { transition: none; } }
+</style>
+</head>
+<body>
+<header class="wrap">
+  <h1>Hifz Check</h1>
+  <div class="pick">
+    <label for="surah">Surah<select id="surah"></select></label>
+    <label for="from">From<input id="from" type="number" min="1" value="1" inputmode="numeric"></label>
+    <label for="to">To<input id="to" type="number" min="1" value="4" inputmode="numeric"></label>
+  </div>
+</header>
+<main><div class="wrap"><div id="passage" aria-live="polite">Loading…</div></div></main>
+<footer>
+  <div class="wrap">
+    <div id="heard" aria-label="What the recognizer heard"></div>
+    <div class="stats"><span>Recited <b id="sOk">0</b></span><span>Mistakes <b id="sBad">0</b></span><span>Hints <b id="sHint">0</b></span><span id="sLeft"></span></div>
+    <div id="msg" hidden></div>
+    <div class="row">
+      <button id="mic" type="button">Start reciting</button>
+      <button id="hint" type="button">Hint</button>
+      <button id="reset" type="button">Reset</button>
+    </div>
+  </div>
+</footer>
+<script src="match.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let quran, spans = [], expected = [], hinted = new Set(), finals = [], live = '', listening = false, rec;
+
+function msg(text) { $('msg').textContent = text || ''; $('msg').hidden = !text; }
+
+function load() {
+  stop();
+  const s = quran[$('surah').value];
+  const n = s.a.length;
+  const from = Math.min(Math.max(1, +$('from').value || 1), n);
+  const to = Math.min(Math.max(from, +$('to').value || from), n);
+  $('from').value = from; $('to').value = to; $('from').max = $('to').max = n;
+  const box = $('passage');
+  box.textContent = '';
+  spans = []; expected = []; hinted = new Set(); finals = []; live = '';
+  for (let a = from; a <= to; a++) {
+    for (const w of s.a[a - 1].split(' ')) {
+      const el = document.createElement('span');
+      el.className = 'w hidden';
+      el.textContent = w;
+      el.dataset.i = spans.length;
+      spans.push(el); expected.push(norm(w));
+      box.append(el, ' ');
+    }
+    const end = document.createElement('span');
+    end.className = 'end';
+    end.textContent = '﴿' + a.toLocaleString('ar-EG') + '﴾';
+    box.append(end, ' ');
+  }
+  render();
+}
+
+function render() {
+  const { state, pos } = align(expected, words(finals.join(' ') + ' ' + live));
+  let ok = 0, bad = 0;
+  spans.forEach((el, i) => {
+    const cls = state[i] === 2 ? 'bad' : hinted.has(i) ? 'hint' : state[i] === 1 ? 'ok' : 'hidden';
+    el.className = 'w ' + cls + (i === pos ? ' next' : '');
+    if (state[i] === 1 && !hinted.has(i)) ok++;
+    if (state[i] === 2) bad++;
+  });
+  $('sOk').textContent = ok; $('sBad').textContent = bad; $('sHint').textContent = hinted.size;
+  $('sLeft').textContent = pos >= spans.length ? 'Done' : '';
+  $('heard').textContent = (finals.slice(-2).join(' ') + ' ' + live).trim();
+  if (pos >= spans.length && listening) stop();
+  return pos;
+}
+
+function listen() {
+  const r = rec = new SR();
+  r.lang = 'ar-SA';
+  r.interimResults = true;
+  r.continuous = false; // Android Chrome repeats text in continuous mode; restart per phrase instead
+  r.onresult = (e) => {
+    if (r !== rec) return; // late event from a stopped session
+    live = Array.from(e.results, (x) => x[0].transcript).join(' ');
+    render();
+  };
+  r.onerror = (e) => {
+    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { msg('Microphone blocked. Allow it in the browser settings for this site.'); stop(); }
+    else if (e.error === 'network') { msg('Speech recognition needs an internet connection.'); stop(); }
+  };
+  r.onend = () => {
+    if (r !== rec) return;
+    if (live) finals.push(live);
+    live = '';
+    if (listening) listen(); // silence ends a session; keep going until the user stops
+  };
+  r.start();
+}
+
+function start() {
+  if (!SR) { msg('This browser has no speech recognition. Use Chrome on Android, or tap the blanks to reveal words.'); return; }
+  msg(''); listening = true;
+  $('mic').textContent = 'Stop'; $('mic').classList.add('on');
+  listen();
+}
+
+function stop() {
+  listening = false;
+  $('mic').textContent = 'Start reciting'; $('mic').classList.remove('on');
+  if (rec) { const r = rec; rec = null; r.abort(); }
+  if (live) { finals.push(live); live = ''; }
+}
+
+$('mic').onclick = () => (listening ? stop() : start());
+$('hint').onclick = () => { const p = render(); if (p < spans.length) { hinted.add(p); render(); } };
+$('reset').onclick = load;
+$('passage').onclick = (e) => { const i = e.target.dataset.i; if (i != null) { hinted.add(+i); render(); } };
+['surah', 'from', 'to'].forEach((id) => ($(id).onchange = load));
+
+fetch('quran.json').then((r) => r.json()).then((q) => {
+  quran = q;
+  $('surah').innerHTML = q.map((s, i) => `<option value="${i}">${i + 1}. ${s.e}</option>`).join('');
+  $('surah').value = 0;
+  load();
+}).catch(() => { $('passage').textContent = 'Could not load quran.json. Open this page through a web server, not as a file.'; });
+</script>
+</body>
+</html>
