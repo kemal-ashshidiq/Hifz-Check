@@ -14,8 +14,24 @@ function norm(w) {
     .replace(/[^ء-ي]/g, '');
 }
 
+// Muqatta'at (الم، حم، كهيعص...) are recited as letter names, so the recognizer
+// writes "الف لام ميم". Joined back into letters they match the written word.
+const LETTER = { الف: 'ا', لام: 'ل', ميم: 'م', صاد: 'ص', را: 'ر', كاف: 'ك', ها: 'ه', يا: 'ي',
+  عين: 'ع', طا: 'ط', سين: 'س', حا: 'ح', قاف: 'ق', نون: 'ن' };
+const SOLO = new Set(['صاد', 'قاف', 'نون']); // ص، ق، ن stand alone; other names are real words alone
+
 function words(text) {
-  return text.split(/\s+/).map(norm).filter(Boolean);
+  const out = [];
+  const ws = text.split(/\s+/).map(norm).filter(Boolean);
+  for (let i = 0; i < ws.length; i++) {
+    let j = i;
+    while (j < ws.length && LETTER[ws[j]]) j++;
+    if (j - i >= 2 || (j - i === 1 && SOLO.has(ws[i]))) {
+      out.push(ws.slice(i, j).map((w) => LETTER[w]).join(''));
+      i = j - 1;
+    } else out.push(ws[i]);
+  }
+  return out;
 }
 
 function lev(a, b) {
