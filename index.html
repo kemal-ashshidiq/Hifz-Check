@@ -12,14 +12,16 @@
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Amiri+Quran&family=Figtree:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&display=swap">
 <style>
+/* KFGQPC Uthmanic Hafs, the font quran.com uses for Uthmani text */
+@font-face { font-family: "UthmanicHafs"; src: url("fonts/UthmanicHafs1Ver18.woff2") format("woff2"); font-display: swap; }
 :root {
   --bg: #f6f3ea; --surface: #fffdf7; --raised: #ffffff; --ink: #1d2420; --muted: #6b716b; --line: #e4dccb;
   --accent: #0f6b55; --accent-soft: #dcefe7; --on-accent: #ffffff; --blank: #e8e0cc;
   --ok: #1d2420; --bad: #b3261e; --bad-bg: #fbe4e1; --hint: #8a5a00; --hint-bg: #fbefd5;
   --gold: #a8843a; --banner-bg: #f2ead6; --scrim: rgba(20, 24, 22, .45); --shadow: 0 8px 28px rgba(40, 34, 20, .12);
-  --quran: "Amiri Quran", "Amiri", "Traditional Arabic", serif;
+  --quran: "UthmanicHafs", "Amiri", "Traditional Arabic", serif;
   --ui: "Figtree", system-ui, sans-serif;
   color-scheme: light;
 }
@@ -58,7 +60,7 @@ header .wrap { display: flex; align-items: center; gap: 4px; min-height: 56px; }
 main { flex: 1; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; }
 .page { margin-block: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
   padding: 14px 14px 10px; box-shadow: var(--shadow); }
-#passage { direction: rtl; text-align: justify; text-align-last: center; font: clamp(23px, 6.4vw, 31px)/2.3 var(--quran); }
+#passage { direction: rtl; text-align: justify; text-align-last: center; font: clamp(25px, 7vw, 34px)/2.2 var(--quran); }
 #passage.turn-next { animation: turnNext .22s ease-out; }
 #passage.turn-prev { animation: turnPrev .22s ease-out; }
 @keyframes turnNext { from { opacity: 0; transform: translateX(-24px); } }
@@ -67,7 +69,7 @@ main { flex: 1; overflow-y: auto; overscroll-behavior: contain; touch-action: pa
 .banner div { border: 1px solid var(--gold); border-radius: 8px; background:
   radial-gradient(circle at 14px 50%, var(--gold) 0 3px, transparent 4px),
   radial-gradient(circle at calc(100% - 14px) 50%, var(--gold) 0 3px, transparent 4px), var(--banner-bg);
-  font-size: .95em; line-height: 1.9; color: var(--ink); padding-inline: 30px; }
+  font-size: .95em; line-height: 1.9; color: var(--ink); padding: .15em 30px; } /* room so harakat stay inside the frame */
 .bism { display: block; text-align: center; color: var(--ink); line-height: 2.1; }
 /* Amiri's tall line box makes plain backgrounds merge into blocks, so draw a shorter bar instead */
 .w { cursor: pointer; padding: 0 2px; border-radius: 4px; background: no-repeat center / 100% 1.1em; transition: color .15s; }
@@ -85,7 +87,7 @@ main { flex: 1; overflow-y: auto; overscroll-behavior: contain; touch-action: pa
 .pager button:hover { background: var(--accent-soft); }
 .pager button:disabled { visibility: hidden; }
 #prev { justify-self: end; }
-#pnum { font: 18px var(--quran); color: var(--muted); min-width: 3ch; text-align: center; }
+#pnum { font: 600 15px var(--ui); color: var(--muted); min-width: 3ch; text-align: center; }
 .pager[hidden] { display: none; }
 
 /* Recitation bar */
@@ -321,13 +323,14 @@ function load(dir) {
       if (s !== 0 && s !== 8) {
         const bism = document.createElement('span');
         bism.className = 'bism';
-        bism.textContent = quran[0].a[0];
+        bism.textContent = quran[0].u[0];
         box.append(bism);
       }
     }
-    for (const w of quran[s].a[a - 1].split(' ')) {
+    const shown = quran[s].u[a - 1].split(' '); // Uthmani words, paired 1:1 with the simple words used for matching
+    for (const [k, w] of quran[s].a[a - 1].split(' ').entries()) {
       const el = document.createElement('span');
-      el.textContent = w;
+      el.textContent = shown[k];
       if (!norm(w)) { // waqf/sajda marks are not words to recite; keep them on the previous word's line
         el.className = 'mark';
         if (box.lastChild && box.lastChild.nodeType === 3) box.lastChild.textContent = ' ';
@@ -341,7 +344,7 @@ function load(dir) {
     }
     const end = document.createElement('span');
     end.className = 'end';
-    end.textContent = '۝' + arNum(a);
+    end.textContent = arNum(a); // the Hafs font draws the ayah ornament around the digits itself
     box.append(end, ' ');
   }
   if (dir) { box.classList.remove('turn-next', 'turn-prev'); void box.offsetWidth; box.classList.add(dir); }
@@ -513,7 +516,7 @@ $('rangeForm').onsubmit = (e) => {
 $('surah').onchange = () => { const n = quran[$('surah').value].a.length; $('from').max = $('to').max = n; $('from').value = 1; $('to').value = Math.min(n, 7); };
 
 // bump v when quran.json changes so phones skip their cached copy
-fetch('quran.json?v=2').then((r) => r.json()).then((q) => {
+fetch('quran.json?v=3').then((r) => r.json()).then((q) => {
   quran = q;
   q.forEach((s, si) => s.a.forEach((_, ai) => {
     (pages[s.p[ai]] = pages[s.p[ai]] || []).push([si, ai + 1]);
