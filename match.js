@@ -22,7 +22,8 @@ const SOLO = new Set(['صاد', 'قاف', 'نون']); // ص، ق، ن stand alon
 
 function words(text) {
   const out = [];
-  const ws = text.split(/\s+/).map(norm).filter(Boolean);
+  // "ألف" also means "thousand", so recognizers (iPhone especially) write the alif of الٓمٓ as 1000
+  const ws = text.replace(/(^|\s)(1,?000|١[٬,]?٠٠٠)(?=\s|$)/g, '$1الف').split(/\s+/).map(norm).filter(Boolean);
   for (let i = 0; i < ws.length; i++) {
     let j = i;
     while (j < ws.length && LETTER[ws[j]]) j++;
