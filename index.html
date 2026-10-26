@@ -497,8 +497,9 @@ async function listenModel() {
     const now = performance.now();
     // shortcut: fixed loudness threshold; if quiet reciters never get cut, adapt it to the room's noise floor
     if (Math.sqrt(sum / buf.length) > 0.015) { recorder.voiced = true; quiet = 0; } else if (!quiet) quiet = now;
-    const pause = recorder.voiced && quiet && now - quiet > 700; // reciters breathe between ayahs
-    if (pause || now - recorder.t0 > 12000) recorder.stop(); // onstop sends it and starts the next clip
+    // cut at a breath (400 ms); after 4 s, at any short gap between words; never past 12 s
+    const gap = quiet ? now - quiet : 0, len = now - recorder.t0;
+    if ((recorder.voiced && (gap > 400 || (len > 4000 && gap > 150))) || len > 12000) recorder.stop(); // onstop sends it and starts the next clip
   }, 100);
 }
 
